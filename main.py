@@ -1,4 +1,5 @@
 # This is a sample Python script.
+# Test edit to verify repo write permissions.
 
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
@@ -26,10 +27,10 @@ import random
 from tqdm import tqdm
 
 class GymEnvironment:
-    def __init__(self, env_id, max_timesteps=120):
+    def __init__(self, env_id, max_timesteps=120, render_mode=None):
 
         self.max_timesteps = max_timesteps  # Define maximum number of timesteps the agent can balance the pole
-        self.env = gym.make(env_id)  # Create the environment
+        self.env = gym.make(env_id, render_mode=render_mode)  # Create the environment
 
     def trainDQN(self, agent):
         rew_hist, loss = self.runDQN(agent, training=True)
@@ -129,7 +130,7 @@ class DQN_Agent:
 
         # TODO: Define here all necessary hyperparameters
         self.gamma = 0.9  # discount rate on future rewards
-        self.epsilon = 10  # exploration rate
+        self.epsilon = 1.0  # exploration rate
         self.epsilon_min = 0.01  # Minimum exploration rate
         self.epsilon_decay = 0.995  # Exploration rate decay factor
 
@@ -251,11 +252,19 @@ if __name__ == "__main__":
             agent = DQN_Agent(state_vector_size, action_space_size) # Create agent - reinitialize for each trial
             rew_hist,loss = environment.trainDQN(agent) # Let the agent train
 
-
             # Let agent run for 100 episodes
             rew_hist,loss = environment.runDQN(agent)
 
             environment.testDQN(agent)
+
+        # Visualize the trained agent in a pop-up window
+        print("\nVisualizing trained agent...")
+        vis_environment = GymEnvironment('Acrobot-v1', render_mode="human")
+        state_vector_size = vis_environment.env.observation_space.shape[0]
+        action_space_size = vis_environment.env.action_space.n
+        agent = DQN_Agent(state_vector_size, action_space_size, load_old_model=True)
+        vis_environment.testDQN(agent)
+        vis_environment.env.close()
 
 
 
