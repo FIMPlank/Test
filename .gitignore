@@ -1,0 +1,4 @@
+research_agents/output/
+research_agents/.env
+__pycache__/
+*.pyc
