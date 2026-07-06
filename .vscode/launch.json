@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Multi-Agent Research System",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/research_agents/orchestrator.py",
+      "args": ["${input:researchQuestion}"],
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "cwd": "${workspaceFolder}/research_agents"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "researchQuestion",
+      "type": "promptString",
+      "description": "Enter the research question for the multi-agent team",
+      "default": "What are the current approaches to improving sample efficiency in reinforcement learning?"
+    }
+  ]
+}
