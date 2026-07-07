@@ -44,6 +44,18 @@ Omit the argument and it will prompt you for a question interactively.
 > If your Python extension predates the `debugpy` debug type, change `"type": "debugpy"` to
 > `"type": "python"` in `.vscode/launch.json`.
 
+## Run as a local web app
+
+```bash
+cd research_agents
+python app.py
+```
+
+Then open http://127.0.0.1:8000 in your browser. Enter a research question and watch the
+pipeline run live in the log panel; finished reports (and any from previous runs) are listed
+below it and can be viewed in place. This runs entirely on your machine - your API key never
+leaves your environment.
+
 ## Output
 
 Reports are written to `research_agents/output/<timestamp>-<slug>.md` (git-ignored).

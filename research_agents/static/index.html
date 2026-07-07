@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-Agent Research System</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    max-width: 860px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5;
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+  .subtitle { color: #6b7280; margin-top: 0; margin-bottom: 1.5rem; }
+  form { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+  input[type=text] {
+    flex: 1; padding: 0.6rem 0.8rem; font-size: 1rem;
+    border: 1px solid #ccc; border-radius: 6px; background: Field; color: FieldText;
+  }
+  button {
+    padding: 0.6rem 1.2rem; font-size: 1rem; border: none; border-radius: 6px;
+    background: #2563eb; color: white; cursor: pointer;
+  }
+  button:disabled { background: #93a5c4; cursor: not-allowed; }
+  #log {
+    background: #111318; color: #ddd; border-radius: 8px; padding: 1rem;
+    height: 420px; overflow-y: auto; white-space: pre-wrap;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.85rem;
+  }
+  #log .entry-dispatch { color: #7dd3fc; }
+  #log .entry-tool { color: #a3a3a3; }
+  #log .entry-info { color: #facc15; }
+  #log .entry-error { color: #f87171; }
+  #log .entry-done { color: #4ade80; font-weight: 600; }
+  #report-link { display: none; margin-top: 1rem; }
+  #reports { margin-top: 2rem; }
+  #reports h2 { font-size: 1rem; }
+  #reports ul { padding-left: 1.2rem; }
+  #report-view {
+    white-space: pre-wrap; background: #f3f4f6; border-radius: 8px; padding: 1rem;
+    margin-top: 1rem; display: none; max-height: 600px; overflow-y: auto;
+  }
+  @media (prefers-color-scheme: dark) {
+    #report-view { background: #1c1c1e; color: #ddd; }
+  }
+</style>
+</head>
+<body>
+  <h1>Multi-Agent Academic Research System</h1>
+  <p class="subtitle">planner &rarr; researcher &rarr; writer &rarr; critic, backed by the Claude Agent SDK</p>
+
+  <form id="research-form">
+    <input type="text" id="question" placeholder="Enter a research question..." required>
+    <button type="submit" id="run-btn">Run</button>
+  </form>
+
+  <div id="log"></div>
+  <div id="report-link"><strong>Report:</strong> <a href="#" id="report-anchor" target="_blank"></a></div>
+  <pre id="report-view"></pre>
+
+  <div id="reports">
+    <h2>Previous reports</h2>
+    <ul id="reports-list"></ul>
+  </div>
+
+<script>
+const form = document.getElementById('research-form');
+const log = document.getElementById('log');
+const runBtn = document.getElementById('run-btn');
+const reportLink = document.getElementById('report-link');
+const reportAnchor = document.getElementById('report-anchor');
+const reportView = document.getElementById('report-view');
+const reportsList = document.getElementById('reports-list');
+
+function appendLog(text, cls) {
+  const div = document.createElement('div');
+  if (cls) div.className = 'entry-' + cls;
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function loadReports() {
+  const res = await fetch('/api/reports');
+  const files = await res.json();
+  reportsList.innerHTML = '';
+  files.slice().reverse().forEach((name) => {
+    const li = document.createElement('li');
+    const a = document.createElement('a');
+    a.href = '#';
+    a.textContent = name;
+    a.onclick = (e) => { e.preventDefault(); viewReport(name); };
+    li.appendChild(a);
+    reportsList.appendChild(li);
+  });
+}
+
+async function viewReport(name) {
+  const res = await fetch(`/api/reports/${encodeURIComponent(name)}`);
+  reportView.textContent = await res.text();
+  reportView.style.display = 'block';
+  reportView.scrollIntoView({ behavior: 'smooth' });
+}
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const question = document.getElementById('question').value.trim();
+  if (!question) return;
+
+  log.innerHTML = '';
+  reportLink.style.display = 'none';
+  reportView.style.display = 'none';
+  runBtn.disabled = true;
+
+  const source = new EventSource(`/api/research/stream?question=${encodeURIComponent(question)}`);
+
+  source.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    switch (data.type) {
+      case 'info':
+        appendLog(`Question: ${data.question}`, 'info');
+        appendLog(`Report will be saved to: ${data.report_path}`, 'info');
+        break;
+      case 'dispatch':
+        appendLog(`-> dispatching ${data.subagent} subagent`, 'dispatch');
+        break;
+      case 'tool':
+        appendLog(`[tool: ${data.name}]`, 'tool');
+        break;
+      case 'text':
+        appendLog(data.text);
+        break;
+      case 'error':
+        appendLog(`Error: ${data.message}`, 'error');
+        source.close();
+        runBtn.disabled = false;
+        break;
+      case 'done':
+        appendLog(data.success ? 'Done - report saved.' : 'Done - but report file was not found.', 'done');
+        if (data.success) {
+          const filename = data.report_path.split('/').pop();
+          reportAnchor.href = `/api/reports/${encodeURIComponent(filename)}`;
+          reportAnchor.textContent = filename;
+          reportLink.style.display = 'block';
+          loadReports();
+        }
+        source.close();
+        runBtn.disabled = false;
+        break;
+    }
+  };
+
+  source.onerror = () => {
+    appendLog('Connection lost.', 'error');
+    source.close();
+    runBtn.disabled = false;
+  };
+});
+
+loadReports();
+</script>
+</body>
+</html>
